@@ -4,8 +4,8 @@ services:
     git:
       branch: main
       repo_clone_url: https://github.com/ryanam26/agenticdoc.git
-    build_command: pip install poetry && poetry install
-    run_command: poetry run uvicorn src.agenticdoc.webapp.app:app --host 0.0.0.0 --port $PORT
+    build_command: pip install -r requirements.txt
+    run_command: uvicorn src.agenticdoc.webapp.app:app --host 0.0.0.0 --port $PORT
     envs:
       - key: PORT
         value: "8080"
