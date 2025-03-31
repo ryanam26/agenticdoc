@@ -11,5 +11,7 @@ services:
         value: "8080"
       - key: ENVIRONMENT
         value: "production"
+      - key: VISION_AGENT_API_KEY
+        value: "${VISION_AGENT_API_KEY}"  # This will be set in Digital Ocean's environment variables
     instance_size_slug: basic-xxs
     instance_count: 1 
