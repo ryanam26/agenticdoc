@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Processor</title>
+    <link href="{{ url_for('static', path='/style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg class="doc-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                </svg>
+                <h1>DocuSleuth</h1>
+            </div>
+            <div class="header-right">
+                <span>Mortgage Document Extraction</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="extraction-container">
+                <h2>Document Extraction</h2>
+                
+                <div class="progress-bar">
+                    <div class="step active">
+                        <span class="dot"></span>
+                        <span class="label">Upload</span>
+                    </div>
+                    <div class="step">
+                        <span class="dot"></span>
+                        <span class="label">Configure</span>
+                    </div>
+                    <div class="step">
+                        <span class="dot"></span>
+                        <span class="label">Extract</span>
+                    </div>
+                    <div class="step">
+                        <span class="dot"></span>
+                        <span class="label">Results</span>
+                    </div>
+                </div>
+
+                <div class="content-grid">
+                    <div class="left-panel">
+                        <h3>What are you uploading?</h3>
+                        <div class="document-type-section">
+                            <label for="document-type">Document Type</label>
+                            <select id="document-type" class="document-select">
+                                <option value="paystub">Paystub</option>
+                                <option value="lease">Lease Agreement</option>
+                                <option value="w2">W-2 Form</option>
+                                <option value="tax">Tax Returns</option>
+                                <option value="mortgage">Mortgage Statements</option>
+                                <option value="bank">Bank Statements</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="document-types-info">
+                            <h4>Common document types we can extract data from:</h4>
+                            <div class="document-type-grid">
+                                <div class="type-item">
+                                    <svg class="type-icon" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                    </svg>
+                                    <span>Paystubs</span>
+                                </div>
+                                <div class="type-item">
+                                    <svg class="type-icon" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                    </svg>
+                                    <span>W-2 Forms</span>
+                                </div>
+                                <div class="type-item">
+                                    <svg class="type-icon" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                    </svg>
+                                    <span>Tax Returns</span>
+                                </div>
+                                <div class="type-item">
+                                    <svg class="type-icon" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                    </svg>
+                                    <span>Bank Statements</span>
+                                </div>
+                                <div class="type-item">
+                                    <svg class="type-icon" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                    </svg>
+                                    <span>Mortgage Statements</span>
+                                </div>
+                                <div class="type-item">
+                                    <svg class="type-icon" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                    </svg>
+                                    <span>Lease Agreements</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="right-panel">
+                        <div class="upload-section">
+                            <form id="upload-form">
+                                <div class="upload-area">
+                                    <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48">
+                                        <path fill="currentColor" d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"/>
+                                    </svg>
+                                    <h3>Upload a Document</h3>
+                                    <p>Drag and drop a file here, or click the button below</p>
+                                    <button type="button" class="upload-button">
+                                        <svg class="button-icon" viewBox="0 0 24 24" width="16" height="16">
+                                            <path fill="currentColor" d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"/>
+                                        </svg>
+                                        Choose File
+                                    </button>
+                                    <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg" class="file-input">
+                                    <p id="selected-file" style="display: none;"></p>
+                                    <p class="file-info">Supported formats: PDF, JPG, PNG, TIFF (Max 10MB)</p>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div id="results-section" class="results-section" style="display: none;">
+                            <div class="tabs">
+                                <button class="tab-button active" data-target="markdown-tab">Markdown</button>
+                                <button class="tab-button" data-target="structured-tab">Structured Data</button>
+                            </div>
+                            <div id="markdown-tab" class="tab-content active">
+                                <div id="markdown-content" class="markdown-content"></div>
+                            </div>
+                            <div id="structured-tab" class="tab-content">
+                                <pre id="structured-content" class="structured-content"></pre>
+                            </div>
+                        </div>
+
+                        <button id="continue-button" class="continue-button" disabled>
+                            Continue to Configure Fields
+                            <svg class="arrow-icon" viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', path='/script.js') }}"></script>
+</body>
+</html> 
