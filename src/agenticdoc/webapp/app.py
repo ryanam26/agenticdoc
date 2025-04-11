@@ -1,13 +1,20 @@
+from typing import Dict, Any
+from dotenv import load_dotenv
+
+from agenticdoc.webapp.documents import  save_document_info,create_agentic_doc_job
+load_dotenv()
+
 import os
+
 from pathlib import Path
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from agentic_doc.parse import parse_documents
 import logging
 import tempfile
-import shutil
-from agenticdoc.webapp.tasks import task_manager, TaskStatus
+from agenticdoc.webapp.tasks import TaskStatus,task_manager
+from agenticdoc.webapp.background import process_document_in_background
+from agenticdoc.webapp.auth import get_current_user
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,10 +30,10 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:8080").split(","),
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
@@ -34,102 +41,76 @@ ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
 def is_valid_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
-def process_document_in_background(task_id: str, file_path: str):
-    """Process the document in the background and update the task status."""
-    try:
-        # Update task status to processing
-        task_manager.update_task(task_id, TaskStatus.PROCESSING)
-        
-        # Process the document
-        logger.info(f"Processing document: {file_path}")
-        results = parse_documents([str(file_path)])
-        
-        if not results or len(results) == 0:
-            raise Exception("Document processing failed: No results returned")
-        
-        # Get the markdown from the first (and only) document
-        parsed_doc = results[0]
-        
-        # Update task with result
-        task_manager.update_task(
-            task_id,
-            TaskStatus.COMPLETED,
-            result={"markdown": parsed_doc.markdown}
-        )
-        
-    except Exception as e:
-        logger.error(f"Error processing document: {str(e)}")
-        task_manager.update_task(
-            task_id,
-            TaskStatus.FAILED,
-            error=str(e)
-        )
-    finally:
-        # Clean up temporary file
-        try:
-            os.unlink(file_path)
-        except Exception as e:
-            logger.error(f"Error cleaning up temporary file: {str(e)}")
 
 @app.post("/process")
 async def process_document(
     file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    metadata: str = Form(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
-    Process a document asynchronously and return a task ID for polling.
+    Process a document with additional metadata.
+    
+    Args:
+        file: The uploaded file to process
+        metadata: JSON string containing additional metadata
+        background_tasks: FastAPI background tasks
+        current_user: Current authenticated user
     """
     try:
-        # Validate file
-        if not is_valid_file(file.filename):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid file type. Supported types: PDF, PNG, JPG, JPEG"
-            )
-        
-        # Create a task
+        # Parse the metadata JSON string
+        metadata_dict = json.loads(metadata)
+
         task_id = task_manager.create_task()
-        
-        # Create temporary file
         temp_dir = tempfile.mkdtemp()
         temp_file_path = os.path.join(temp_dir, file.filename)
-        
-        try:
-            # Read file content
-            content = await file.read()
+
+        content = await file.read()
             
-            # Save to temporary file
-            with open(temp_file_path, "wb") as buffer:
-                buffer.write(content)
-            
-            # Add background task
-            background_tasks.add_task(process_document_in_background, task_id, temp_file_path)
-            
-            return {
-                "task_id": task_id,
-                "status": "pending",
-                "message": "Document processing started"
-            }
-            
-        except Exception as e:
-            # Clean up temporary directory
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error saving file: {str(e)}"
-            )
-            
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected error: {str(e)}"
+        with open(temp_file_path, "wb") as buffer:
+            buffer.write(content)
+
+        agentic_job_doc = create_agentic_doc_job(
+            user_id=current_user.id,
+            fields=metadata_dict.get("fields", {}),
+            result={},
+            error="",
+            document_type=metadata_dict.get("document_type", "unknown")
         )
 
+        agentic_job_doc_id = agentic_job_doc[0]["job_id"]
+        # Save document info with metadata
+        document_info = save_document_info(
+            user_id=current_user.id,
+            file_name=file.filename,
+            file_size=file.size,  
+            file_type=file.content_type,
+            status="processing",
+            document_type=metadata_dict.get("document_type", "unknown"),
+            processing_result="",
+            error_message="",
+            job_id=agentic_job_doc_id,
+            metadata=metadata_dict.get("fields", {})
+        )
+
+        background_tasks.add_task(process_document_in_background, task_id, temp_file_path, agentic_job_doc_id,metadata_dict)
+        
+        return {"message": "Document processing started", "document_info": document_info, "task_id": task_id, "status": "processing"}
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid metadata JSON format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/task/{task_id}")
-async def get_task_status(task_id: str):
+async def get_task_status(
+    task_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """
     Get the status of a processing task.
+    Requires authentication.
     """
     task = task_manager.get_task(task_id)
     if not task:
@@ -156,3 +137,11 @@ async def get_task_status(task_id: str):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"} 
+
+@app.get("/user-test")
+async def user_test(
+        current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """User test endpoint"""
+    return {"status": "healthy",
+            "user": current_user} 
