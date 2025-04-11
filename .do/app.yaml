@@ -4,14 +4,17 @@ services:
     git:
       branch: main
       repo_clone_url: https://github.com/ryanam26/agenticdoc.git
-    build_command: pip install -r requirements.txt
-    run_command: uvicorn src.agenticdoc.webapp.app:app --host 0.0.0.0 --port $PORT
+    build_command: |
+      pip install poetry
+      poetry install --no-dev
+    run_command: |
+      poetry run uvicorn src.agenticdoc.webapp.app:app --host 0.0.0.0 --port $PORT
     envs:
       - key: PORT
         value: "8080"
       - key: ENVIRONMENT
         value: "production"
       - key: VISION_AGENT_API_KEY
-        value: "${VISION_AGENT_API_KEY}"  # This will be set in Digital Ocean's environment variables
+        value: "${VISION_AGENT_API_KEY}" # This will be set in Digital Ocean's environment variables
     instance_size_slug: basic-xxs
-    instance_count: 1 
+    instance_count: 1
