@@ -6,7 +6,9 @@ services:
       repo_clone_url: https://github.com/ryanam26/agenticdoc.git
     build_command: |
       pip install poetry
+      poetry config virtualenvs.create false
       poetry install --no-dev
+      pip install -e .
     run_command: |
       poetry run uvicorn src.agenticdoc.webapp.app:app --host 0.0.0.0 --port $PORT
     envs:
