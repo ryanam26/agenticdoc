@@ -3,7 +3,7 @@
 
 
 from typing import Any, Dict
-from agenticdoc.webapp.db import get_supabase_client
+from webapp.db import get_supabase_client
 
 def create_agentic_doc_job(
     user_id: str,

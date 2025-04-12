@@ -1,9 +1,9 @@
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-from agenticdoc.webapp.constant import DOCUMENT_BUCKET_NAME
-from agenticdoc.webapp.documents import  save_document_info,create_agentic_doc_job
-from agenticdoc.webapp.upload import upload_file_to_storage
+from webapp.constant import DOCUMENT_BUCKET_NAME
+from webapp.documents import  save_document_info,create_agentic_doc_job
+from webapp.upload import upload_file_to_storage
 load_dotenv()
 
 import os
@@ -13,9 +13,9 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, D
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import tempfile
-from agenticdoc.webapp.tasks import TaskStatus,task_manager
-from agenticdoc.webapp.background import process_document_in_background
-from agenticdoc.webapp.auth import get_current_user
+from webapp.tasks import TaskStatus,task_manager
+from webapp.background import process_document_in_background
+from webapp.auth import get_current_user
 import json
 
 # Set up logging

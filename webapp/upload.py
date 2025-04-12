@@ -1,7 +1,6 @@
 import os
 import uuid
 import mimetypes
-from typing import Optional
 from fastapi import HTTPException
 from .db import get_supabase_client
 

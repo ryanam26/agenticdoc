@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Depends, Header
 from typing import Optional
-from agenticdoc.webapp.db import get_supabase_client
+from webapp.db import get_supabase_client
 
 # Initialize Supabase client
 

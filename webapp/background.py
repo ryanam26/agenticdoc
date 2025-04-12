@@ -1,8 +1,8 @@
 from typing import Any, Dict
 from agentic_doc.parse import parse_documents
-from agenticdoc.webapp.documents import update_agentic_doc_job, update_document_by_job_id
-from agenticdoc.webapp.llm import extract_data_from_document
-from agenticdoc.webapp.tasks import task_manager, TaskStatus
+from webapp.documents import update_agentic_doc_job, update_document_by_job_id
+from webapp.llm import extract_data_from_document
+from webapp.tasks import task_manager, TaskStatus
 import logging
 import os
 

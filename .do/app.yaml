@@ -8,9 +8,10 @@ services:
       pip install poetry
       poetry config virtualenvs.create false
       poetry install --no-dev
-      pip install -e .
+      poetry build
+      pip install dist/*.whl
     run_command: |
-      poetry run uvicorn src.agenticdoc.webapp.app:app --host 0.0.0.0 --port $PORT
+      poetry run uvicorn webapp.app:app --host 0.0.0.0 --port $PORT
     envs:
       - key: PORT
         value: "8080"
