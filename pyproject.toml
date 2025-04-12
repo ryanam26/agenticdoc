@@ -5,7 +5,7 @@ description = "Demo project for agentic document processing"
 authors = ["Ryan Morrison <ryanam26@yahoo.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{ include = "agenticdoc", from = "src" }]
+packages = [{ include = "webapp" }]
 
 [tool.poetry.dependencies]
 python = "^3.12"
