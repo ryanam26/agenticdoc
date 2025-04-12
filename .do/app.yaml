@@ -1,4 +1,4 @@
-name: agenticdoc-api
+name: agenticdoc
 services:
   - name: web
     git:
@@ -17,5 +17,15 @@ services:
         value: "production"
       - key: VISION_AGENT_API_KEY
         value: "${VISION_AGENT_API_KEY}"
-    instance_size_slug: basic-xxs
+      - key: SUPABASE_URL
+        value: "${SUPABASE_URL}"
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: "${SUPABASE_SERVICE_ROLE_KEY}"
+      - key: AGENTIC_DOC_URL
+        value: "${AGENTIC_DOC_URL}"
+      - key: OPENAI_API_KEY
+        value: "${OPENAI_API_KEY}"
+    instance_size_slug: apps-s-1vcpu-1gb-fixed
     instance_count: 1
+    http_port: 8080
+    source_dir: /
