@@ -104,7 +104,7 @@ async def process_document(
             file_path=file_path
         )
 
-        # background_tasks.add_task(process_document_in_background, task_id, temp_file_path, agentic_job_doc_id,metadata_dict)
+        background_tasks.add_task(process_document_in_background, task_id, temp_file_path, agentic_job_doc_id,metadata_dict)
         
         return {"message": "Document processing started", "document_info": document_info, "task_id": task_id, "status": "processing"}
         
