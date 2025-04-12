@@ -5,12 +5,9 @@ services:
       branch: main
       repo_clone_url: https://github.com/ryanam26/agenticdoc.git
     build_command: |
-      pip install --upgrade pip
       pip install poetry
       poetry config virtualenvs.create false
       poetry install --no-dev
-      poetry build
-      pip install dist/*.whl
     run_command: |
       poetry run uvicorn webapp.app:app --host 0.0.0.0 --port $PORT
     envs:
@@ -19,6 +16,6 @@ services:
       - key: ENVIRONMENT
         value: "production"
       - key: VISION_AGENT_API_KEY
-        value: "${VISION_AGENT_API_KEY}" # This will be set in Digital Ocean's environment variables
+        value: "${VISION_AGENT_API_KEY}"
     instance_size_slug: basic-xxs
     instance_count: 1
