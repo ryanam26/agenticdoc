@@ -47,7 +47,8 @@ def save_document_info(
     processing_result: str,
     error_message: str,
     job_id: str,
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any],
+    file_path: str
 ) -> Dict[str, Any]:
     """
     Save document information to the Supabase database.
@@ -73,7 +74,7 @@ def save_document_info(
     document_data = {
         "user_id": user_id,
         "file_name": file_name,
-        "file_path": "",
+        "file_path": file_path,
         "file_size": file_size,
         "file_type": file_type,
         "status": status,

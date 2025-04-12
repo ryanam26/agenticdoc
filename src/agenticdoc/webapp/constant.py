@@ -1,0 +1,1 @@
+DOCUMENT_BUCKET_NAME = "documents"

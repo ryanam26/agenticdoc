@@ -1,7 +1,9 @@
 from typing import Dict, Any
 from dotenv import load_dotenv
 
+from agenticdoc.webapp.constant import DOCUMENT_BUCKET_NAME
 from agenticdoc.webapp.documents import  save_document_info,create_agentic_doc_job
+from agenticdoc.webapp.upload import upload_file_to_storage
 load_dotenv()
 
 import os
@@ -71,6 +73,13 @@ async def process_document(
         with open(temp_file_path, "wb") as buffer:
             buffer.write(content)
 
+        file_path = upload_file_to_storage(
+            user_id=current_user.id,
+            file_content=content,
+            file_name=file.filename,
+            bucket_name=DOCUMENT_BUCKET_NAME
+        )
+
         agentic_job_doc = create_agentic_doc_job(
             user_id=current_user.id,
             fields=metadata_dict.get("fields", {}),
@@ -91,10 +100,11 @@ async def process_document(
             processing_result="",
             error_message="",
             job_id=agentic_job_doc_id,
-            metadata=metadata_dict.get("fields", {})
+            metadata=metadata_dict.get("fields", {}),
+            file_path=file_path
         )
 
-        background_tasks.add_task(process_document_in_background, task_id, temp_file_path, agentic_job_doc_id,metadata_dict)
+        # background_tasks.add_task(process_document_in_background, task_id, temp_file_path, agentic_job_doc_id,metadata_dict)
         
         return {"message": "Document processing started", "document_info": document_info, "task_id": task_id, "status": "processing"}
         
