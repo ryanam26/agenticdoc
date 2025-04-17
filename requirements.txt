@@ -9,3 +9,4 @@ supabase==2.15.0
 python-jose[cryptography]==3.4.0
 requests==2.32.3 
 openai==1.75.0
+pypdf2 == "3.0.1"

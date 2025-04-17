@@ -19,6 +19,7 @@ supabase = "^2.15.0"
 python-jose = { extras = ["cryptography"], version = "^3.4.0" }
 requests = "^2.32.3"
 openai = "^1.75.0"
+pypdf2 = "^3.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0"

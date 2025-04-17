@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 from webapp.constant import DOCUMENT_BUCKET_NAME
 from webapp.documents import  save_document_info,create_agentic_doc_job
-from webapp.landingai import get_parsed_doc_from_landingai
 from webapp.upload import upload_file_to_storage
 load_dotenv()
 

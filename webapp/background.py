@@ -7,6 +7,7 @@ from webapp.mistral import get_mistral_ocr_response
 from webapp.tasks import task_manager, TaskStatus
 import logging
 import os
+from PyPDF2 import PdfReader
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,7 +58,6 @@ def reprocess_document_in_background(document_id: str, fields: Dict[str, Any]):
         logger.error(f"Error processing document: {str(e)}")
         return None
 
-
 def process_document_in_background(task_id: str, file_path: str, agentic_job_doc_id: str,metadata: Dict[str, Any],file_url: str, document_id: str):
     """Process the document in the background and update the task status."""
     try:
@@ -65,26 +65,42 @@ def process_document_in_background(task_id: str, file_path: str, agentic_job_doc
         task_manager.update_task(task_id, TaskStatus.PROCESSING)
         # Process the document
         logger.info(f"Processing document: {file_path}")
-        results = parse_documents([str(file_path)])
-        markdown = ""
-
-        chunks = results[0].chunks
-        error_chunks = []
-        for chunk in chunks:
-            if chunk.chunk_type=="error":
-                error_chunks.append(chunk)
-
-        if not results or len(results) == 0 or len(error_chunks) > 0:
+        
+        # Check if file is PDF and get page count
+        use_mistral = False
+        if file_path.lower().endswith('.pdf'):
             try:
-                print("Attempting to parse document using mistral ocr")
-                markdown = get_mistral_ocr_response(file_url)
-                print(f"✅ Successfully parsed document using mistral \n\n{markdown}")
+                pdf = PdfReader(file_path)
+                if len(pdf.pages) > 5:
+                    use_mistral = True
+                    logger.info(f"PDF has {len(pdf.pages)} pages, using Mistral OCR")
             except Exception as e:
-                raise Exception("Document processing failed : No results returned")
+                logger.warning(f"Error reading PDF: {str(e)}, falling back to default processing")
 
+        if use_mistral:
+            print("Using mistral ocr because pdf has more than 5 pages")
+            markdown = get_mistral_ocr_response(file_url)
+            logger.info(f"✅ Successfully parsed document using mistral \n\n{markdown}")
         else:
-            parsed_doc = results[0]
-            markdown = parsed_doc.markdown
+            results = parse_documents([str(file_path)])
+            markdown = ""
+
+            chunks = results[0].chunks
+            error_chunks = []
+            for chunk in chunks:
+                if chunk.chunk_type=="error":
+                    error_chunks.append(chunk)
+
+            if not results or len(results) == 0 or len(error_chunks) > 0:
+                try:
+                    logger.info("Attempting to parse document using mistral ocr")
+                    markdown = get_mistral_ocr_response(file_url)
+                    logger.info(f"✅ Successfully parsed document using mistral \n\n{markdown}")
+                except Exception as e:
+                    raise Exception("Document processing failed : No results returned")
+            else:
+                parsed_doc = results[0]
+                markdown = parsed_doc.markdown
 
         update_agentic_doc_job(
             job_id=agentic_job_doc_id,
