@@ -1,3 +1,4 @@
+import json
 from typing import Any, Dict
 from agentic_doc.parse import parse_documents
 from webapp.documents import get_document_data_by_document_id, update_agentic_doc_job,  update_document_by_job_id, update_agentic_doc_job_fields, update_document_data   
@@ -67,11 +68,25 @@ def process_document_in_background(task_id: str, file_path: str, agentic_job_doc
         results = parse_documents([str(file_path)])
         markdown = ""
 
-        if not results or len(results) == 0:
+        # write entire results to a file
+        for result in results:
+            value = result.model_dump_json()
+            with open("results.txt", "a") as f:
+                f.write(value)
+
+        chunks = results[0].chunks
+        error_chunks = []
+        for chunk in chunks:
+            if chunk.chunk_type=="error":
+                error_chunks.append(chunk)
+
+        if not results or len(results) == 0 or len(error_chunks) > 0:
             try:
+                print("Attempting to parse document using mistral ocr")
                 markdown = get_mistral_ocr_response(file_url)
+                print(f"✅ Successfully parsed document using mistral \n\n{markdown}")
             except Exception as e:
-                raise Exception("Document processing failed even with mistral ocr: No results returned")
+                raise Exception("Document processing failed : No results returned")
 
         else:
             parsed_doc = results[0]
@@ -102,7 +117,7 @@ def process_document_in_background(task_id: str, file_path: str, agentic_job_doc
         task_manager.update_task(
             task_id,
             TaskStatus.COMPLETED,
-            result={"markdown": parsed_doc.markdown, "data": extracted_data}
+            result={"markdown": markdown, "data": extracted_data}
         )
         
     except Exception as e:

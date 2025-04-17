@@ -211,7 +211,7 @@ def extract_data_from_document(params: ExtractDataParams) -> ExtractionResult:
             tools=[{
                 "type": "file_search",
                 "vector_store_ids": vector_store_ids,
-                "max_num_results": 10
+                "max_num_results": 100
             }],
             input=prompt
         )
