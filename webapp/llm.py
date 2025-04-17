@@ -195,31 +195,53 @@ def extract_data_from_document(params: ExtractDataParams) -> ExtractionResult:
             file_ids = []
             vector_store_ids = []
             if params.get("file_ids") is None:
-                file_id = create_openai_file_from_markdown(client, markdown)
-                file_ids.append(file_id)
+                try:
+                    file_id = create_openai_file_from_markdown(client, markdown)
+                    file_ids.append(file_id)
+                except Exception as file_error:
+                    logger.error("Error creating OpenAI file: %s", file_error)
+                    raise Exception(f"Failed to create OpenAI file: {str(file_error)}")
             else:
                 file_ids = params.get("file_ids")
             
             # Create a vector store with the file
             if params.get("vector_store_ids") is None:
-                vector_store_id = create_vector_store(client, file_id, f"{document_type} Extraction")
-                vector_store_ids.append(vector_store_id)
+                try:
+                    vector_store_id = create_vector_store(client, file_id, f"{document_type} Extraction")
+                    vector_store_ids.append(vector_store_id)
+                except Exception as vector_error:
+                    logger.error("Error creating vector store: %s", vector_error)
+                    raise Exception(f"Failed to create vector store: {str(vector_error)}")
             else:
                 vector_store_ids = params.get("vector_store_ids")
 
             # save the file id and  vector store id to the database
-            save_file_and_vector_store_ids(document_id, file_ids, vector_store_ids)
+            try:
+                save_file_and_vector_store_ids(document_id, file_ids, vector_store_ids)
+            except Exception as db_error:
+                logger.error("Error saving to database: %s", db_error)
+                # Continue execution as this is not critical
             
             # Make the API request with vector store
-            response = client.responses.create(
-                model="gpt-4.1",
-                tools=[{
-                    "type": "file_search",
-                    "vector_store_ids": vector_store_ids,
-                    "max_num_results": 50
-                }],
-                input=prompt
-            )
+            try:
+                response = client.responses.create(
+                    model="gpt-4.1",
+                    tools=[{
+                        "type": "file_search",
+                        "vector_store_ids": vector_store_ids,
+                        "max_num_results": 50
+                    }],
+                    input=prompt
+                )
+            except Exception as api_error:
+                logger.error("OpenAI API connection error: %s", api_error)
+                if "Connection" in str(api_error):
+                    logger.error("Network connectivity issue detected. Check firewall, proxy settings, or network configuration.")
+                elif "timeout" in str(api_error).lower():
+                    logger.error("Request timed out. Check network latency or increase timeout settings.")
+                elif "rate_limit" in str(api_error).lower():
+                    logger.error("Rate limit exceeded. Implement backoff strategy or reduce request frequency.")
+                raise Exception(f"OpenAI API error: {str(api_error)}")
             
             logger.info("Raw OpenAI API response: %s", response)
             
