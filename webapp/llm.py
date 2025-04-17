@@ -161,6 +161,7 @@ def create_file_and_vector_store(markdown: str, document_type: DocumentType) -> 
 def extract_data_from_document(params: ExtractDataParams) -> ExtractionResult:
     """
     Extract data from a document using OpenAI's API with vector store.
+    Will retry up to 2 times in case of errors.
     
     Args:
         params: Dictionary containing markdown, documentType, and fields
@@ -178,81 +179,90 @@ def extract_data_from_document(params: ExtractDataParams) -> ExtractionResult:
     logger.info("Created prompt for OpenAI: %s", prompt)
     logger.info("Markdown to be processed: %s", markdown)
     
-    try:
-        openai_api_key = os.environ.get("OPENAI_API_KEY")
-        if not openai_api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-        
-        # Initialize OpenAI client
-        client = OpenAI(api_key=openai_api_key)
-        
-        # Create a file from the markdown content
-        file_ids = []
-        vector_store_ids = []
-        if params.get("file_ids") is None:
-            file_id = create_openai_file_from_markdown(client, markdown)
-            file_ids.append(file_id)
-        else:
-            file_ids = params.get("file_ids")
-        
-        # Create a vector store with the file
-        if params.get("vector_store_ids") is None:
-            vector_store_id = create_vector_store(client, file_id, f"{document_type} Extraction")
-            vector_store_ids.append(vector_store_id)
-        else:
-            vector_store_ids = params.get("vector_store_ids")
+    max_retries = 2
+    retry_count = 0
+    
+    while retry_count <= max_retries:
+        try:
+            openai_api_key = os.environ.get("OPENAI_API_KEY")
+            if not openai_api_key:
+                raise ValueError("OPENAI_API_KEY environment variable not set")
+            
+            # Initialize OpenAI client
+            client = OpenAI(api_key=openai_api_key)
+            
+            # Create a file from the markdown content
+            file_ids = []
+            vector_store_ids = []
+            if params.get("file_ids") is None:
+                file_id = create_openai_file_from_markdown(client, markdown)
+                file_ids.append(file_id)
+            else:
+                file_ids = params.get("file_ids")
+            
+            # Create a vector store with the file
+            if params.get("vector_store_ids") is None:
+                vector_store_id = create_vector_store(client, file_id, f"{document_type} Extraction")
+                vector_store_ids.append(vector_store_id)
+            else:
+                vector_store_ids = params.get("vector_store_ids")
 
-        # save the file id and  vector store id to the database
-        save_file_and_vector_store_ids(document_id, file_ids, vector_store_ids)
-        
-        # Make the API request with vector store
-        response = client.responses.create(
-            model="gpt-4.1",
-            tools=[{
-                "type": "file_search",
-                "vector_store_ids": vector_store_ids,
-                "max_num_results": 100
-            }],
-            input=prompt
-        )
-        
-        logger.info("Raw OpenAI API response: %s", response)
-        
-        # Process the extraction results
-        result: ExtractionResult = {}
-        
-        # Check if the response has the expected structure
-        if hasattr(response, 'output') and isinstance(response.output, list):
-            # Find the message output that contains the content
-            for output_item in response.output:
-                if hasattr(output_item, 'type') and hasattr(output_item, 'status'):
-                    if output_item.type == 'message' and output_item.status == 'completed':
-                        # Extract the content from the message
-                        if hasattr(output_item, 'content'):
-                            content_items = output_item.content
-                            for content_item in content_items:
-                                if hasattr(content_item, 'type') and content_item.type == 'output_text':
-                                    if hasattr(content_item, 'text'):
-                                        content = content_item.text
-                                        logger.info("OpenAI response content: %s", content)
-                                        
-                                        clean_content = content.replace("```json", "").replace("```", "").strip()
-                                        logger.info("Cleaned content for parsing: %s", clean_content)
-                                        
-                                        try:
-                                            extracted_data = json.loads(clean_content)
-                                            logger.info("Parsed JSON data from OpenAI: %s", extracted_data)
+            # save the file id and  vector store id to the database
+            save_file_and_vector_store_ids(document_id, file_ids, vector_store_ids)
+            
+            # Make the API request with vector store
+            response = client.responses.create(
+                model="gpt-4.1",
+                tools=[{
+                    "type": "file_search",
+                    "vector_store_ids": vector_store_ids,
+                    "max_num_results": 50
+                }],
+                input=prompt
+            )
+            
+            logger.info("Raw OpenAI API response: %s", response)
+            
+            # Process the extraction results
+            result: ExtractionResult = {}
+            
+            # Check if the response has the expected structure
+            if hasattr(response, 'output') and isinstance(response.output, list):
+                # Find the message output that contains the content
+                for output_item in response.output:
+                    if hasattr(output_item, 'type') and hasattr(output_item, 'status'):
+                        if output_item.type == 'message' and output_item.status == 'completed':
+                            # Extract the content from the message
+                            if hasattr(output_item, 'content'):
+                                content_items = output_item.content
+                                for content_item in content_items:
+                                    if hasattr(content_item, 'type') and content_item.type == 'output_text':
+                                        if hasattr(content_item, 'text'):
+                                            content = content_item.text
+                                            logger.info("OpenAI response content: %s", content)
                                             
-                                            for field in fields:
-                                                result[field["id"]] = extracted_data.get(field["id"], "")
+                                            clean_content = content.replace("```json", "").replace("```", "").strip()
+                                            logger.info("Cleaned content for parsing: %s", clean_content)
                                             
-                                            logger.info("Final mapped extraction results: %s", result)
-                                            return result
-                                        except json.JSONDecodeError as e:
-                                            logger.error("Error parsing JSON from OpenAI response: %s", e)
-                                            raise Exception("Failed to parse extracted data")
-        
-        raise Exception("No valid response data received from OpenAI API")
-    except Exception as error:
-        logger.error("Error in OpenAI extraction process: %s", error)
-        raise error 
+                                            try:
+                                                extracted_data = json.loads(clean_content)
+                                                logger.info("Parsed JSON data from OpenAI: %s", extracted_data)
+                                                
+                                                for field in fields:
+                                                    result[field["id"]] = extracted_data.get(field["id"], "")
+                                                
+                                                logger.info("Final mapped extraction results: %s", result)
+                                                return result
+                                            except json.JSONDecodeError as e:
+                                                logger.error("Error parsing JSON from OpenAI response: %s", e)
+                                                raise Exception("Failed to parse extracted data")
+            
+            raise Exception("No valid response data received from OpenAI API")
+            
+        except Exception as error:
+            retry_count += 1
+            if retry_count > max_retries:
+                logger.error("Error in OpenAI extraction process after %d retries: %s", max_retries, error)
+                raise error
+            logger.warning("Attempt %d failed, retrying... Error: %s", retry_count, error)
+            continue 
