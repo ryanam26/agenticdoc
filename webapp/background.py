@@ -68,12 +68,6 @@ def process_document_in_background(task_id: str, file_path: str, agentic_job_doc
         results = parse_documents([str(file_path)])
         markdown = ""
 
-        # write entire results to a file
-        for result in results:
-            value = result.model_dump_json()
-            with open("results.txt", "a") as f:
-                f.write(value)
-
         chunks = results[0].chunks
         error_chunks = []
         for chunk in chunks:
