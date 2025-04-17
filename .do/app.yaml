@@ -25,6 +25,10 @@ services:
         value: "${AGENTIC_DOC_URL}"
       - key: OPENAI_API_KEY
         value: "${OPENAI_API_KEY}"
+      - key: MAX_RETRIES
+        value: "10"
+      - key: MAX_RETRY_WAIT_TIME
+        value: "30"
     instance_size_slug: apps-s-1vcpu-1gb-fixed
     instance_count: 1
     http_port: 8080
