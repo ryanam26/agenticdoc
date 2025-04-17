@@ -45,4 +45,5 @@ def get_mistral_ocr_response(document_url: str):
     response = requests.post(request_url, headers=headers, json=body)
 
     result = response.json()
+    print("✅ Mistral OCR response: ", result)
     return format_mistral_ocr_response(result)
