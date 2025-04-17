@@ -2,6 +2,7 @@ import json
 import os
 import logging
 import tempfile
+import time
 from typing import Dict, List, Any, TypedDict, Literal, Union, Optional
 from openai import OpenAI
 
@@ -223,6 +224,7 @@ def extract_data_from_document(params: ExtractDataParams) -> ExtractionResult:
                 # Continue execution as this is not critical
             
             # Make the API request with vector store
+            time.sleep(30)
             try:
                 response = client.responses.create(
                     model="gpt-4.1",
