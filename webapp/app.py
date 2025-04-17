@@ -9,12 +9,12 @@ load_dotenv()
 import os
 
 from pathlib import Path
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Depends, Form
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Depends, Form, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import tempfile
 from webapp.tasks import TaskStatus,task_manager
-from webapp.background import process_document_in_background
+from webapp.background import process_document_in_background, reprocess_document_in_background
 from webapp.auth import get_current_user
 import json
 
@@ -80,6 +80,7 @@ async def process_document(
             bucket_name=DOCUMENT_BUCKET_NAME
         )
 
+
         agentic_job_doc = create_agentic_doc_job(
             user_id=current_user.id,
             fields=metadata_dict.get("fields", {}),
@@ -87,6 +88,7 @@ async def process_document(
             error="",
             document_type=metadata_dict.get("document_type", "unknown")
         )
+
 
         agentic_job_doc_id = agentic_job_doc[0]["job_id"]
         # Save document info with metadata
@@ -104,7 +106,10 @@ async def process_document(
             file_path=file_path
         )
 
-        background_tasks.add_task(process_document_in_background, task_id, temp_file_path, agentic_job_doc_id,metadata_dict)
+        document_id = document_info[0]["id"]
+
+
+        background_tasks.add_task(process_document_in_background, task_id, temp_file_path, agentic_job_doc_id,metadata_dict,file_path, document_id)
         
         return {"message": "Document processing started", "document_info": document_info, "task_id": task_id, "status": "processing"}
         
@@ -112,6 +117,34 @@ async def process_document(
         raise HTTPException(status_code=400, detail="Invalid metadata JSON format")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/reprocess")
+async def reprocess_document(
+    data: Dict[str, Any] = Body(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Reprocess a document with new fields.
+    
+    Args:
+        data: JSON containing document_id and fields
+        background_tasks: FastAPI background tasks
+        current_user: Current authenticated user
+    """
+    try:
+        document_id = data.get("document_id")
+        fields = data.get("fields", {})
+        
+        if not document_id:
+            raise HTTPException(status_code=400, detail="document_id is required")
+            
+        background_tasks.add_task(reprocess_document_in_background, document_id, fields)
+        return {"message": "Document reprocessed", "document_id": document_id}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 @app.get("/task/{task_id}")
 async def get_task_status(

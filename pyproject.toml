@@ -18,6 +18,7 @@ agentic-doc = { git = "https://github.com/landing-ai/agentic-doc.git" }
 supabase = "^2.15.0"
 python-jose = { extras = ["cryptography"], version = "^3.4.0" }
 requests = "^2.32.3"
+openai = "^1.75.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0"

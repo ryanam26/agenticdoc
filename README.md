@@ -13,13 +13,15 @@ A web application for processing documents (PDFs and images) using agentic-doc, 
 ## Setup
 
 1. Install dependencies:
+
    ```bash
    poetry install
    ```
 
 2. Run the web application:
+
    ```bash
-   poetry run python src/agenticdoc/webapp/run.py
+   poetry run uvicorn webapp.app:app --host 0.0.0.0 --port 8000
    ```
 
 3. Open your browser and navigate to:
@@ -35,7 +37,8 @@ A web application for processing documents (PDFs and images) using agentic-doc, 
 ## Development
 
 The application uses:
+
 - FastAPI for the backend
 - TailwindCSS for styling
 - markdown-it for markdown rendering
-- agentic-doc for document processing 
+- agentic-doc for document processing

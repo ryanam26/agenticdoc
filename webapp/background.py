@@ -1,7 +1,8 @@
 from typing import Any, Dict
 from agentic_doc.parse import parse_documents
-from webapp.documents import update_agentic_doc_job, update_document_by_job_id
+from webapp.documents import get_document_data_by_document_id, update_agentic_doc_job,  update_document_by_job_id, update_agentic_doc_job_fields, update_document_data   
 from webapp.llm import extract_data_from_document
+from webapp.mistral import get_mistral_ocr_response
 from webapp.tasks import task_manager, TaskStatus
 import logging
 import os
@@ -9,7 +10,54 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def process_document_in_background(task_id: str, file_path: str, agentic_job_doc_id: str,metadata: Dict[str, Any]):
+def reprocess_document_in_background(document_id: str, fields: Dict[str, Any]):
+    """Process the document in the background and update the task status."""
+    try:
+        update_document_data(
+            document_id=document_id,
+            data={
+                "status": "processing",
+                "has_checked": False
+            }
+        )
+        print(f"Document {document_id} updated to processing")
+        document_data = get_document_data_by_document_id(document_id)
+        print(f"Document {document_id} data: {document_data}")
+
+        extracted_data = extract_data_from_document({
+            "markdown": document_data["markdown"],
+            "document_type": document_data["document_type"],
+            "fields": fields,
+            "document_id": document_id,
+            "file_ids": document_data["file_ids"],
+            "vector_store_ids": document_data["vector_store_ids"]
+        })
+
+        print(f"Extracted data: {extracted_data}")
+
+        update_agentic_doc_job_fields(
+            job_id=document_data["job_id"],
+            fields=fields
+        )
+
+        print(f"Updated agentic doc job fields: {fields}")
+
+        update_document_by_job_id(
+            job_id=document_data["job_id"],
+            status="completed",
+            processing_result=extracted_data,
+            metadata= fields
+        )
+
+        print(f"Updated document by job id: {document_data['job_id']}")
+
+        # update document value to processing
+    except Exception as e:
+        logger.error(f"Error processing document: {str(e)}")
+        return None
+
+
+def process_document_in_background(task_id: str, file_path: str, agentic_job_doc_id: str,metadata: Dict[str, Any],file_url: str, document_id: str):
     """Process the document in the background and update the task status."""
     try:
         # Update task status to processing
@@ -17,26 +65,31 @@ def process_document_in_background(task_id: str, file_path: str, agentic_job_doc
         # Process the document
         logger.info(f"Processing document: {file_path}")
         results = parse_documents([str(file_path)])
-
+        markdown = ""
 
         if not results or len(results) == 0:
-            raise Exception("Document processing failed: No results returned")
-        
-        # Get the markdown from the first (and only) document
-        parsed_doc = results[0]
+            try:
+                markdown = get_mistral_ocr_response(file_url)
+            except Exception as e:
+                raise Exception("Document processing failed even with mistral ocr: No results returned")
+
+        else:
+            parsed_doc = results[0]
+            markdown = parsed_doc.markdown
 
         update_agentic_doc_job(
             job_id=agentic_job_doc_id,
-            result=parsed_doc.markdown,
+            result=markdown,
             error=""
         )
 
-        logger.info(f"✅ Successfully parsed document to get markdown \n\n{parsed_doc.markdown}")
+        logger.info(f"✅ Successfully parsed document to get markdown \n\n{markdown}")
 
         extracted_data = extract_data_from_document({
-            "markdown": parsed_doc.markdown,
+            "markdown": markdown,
             "document_type": metadata["document_type"],
-            "fields": metadata["fields"]
+            "fields": metadata["fields"],
+            "document_id": document_id
         })
 
         update_document_by_job_id(
@@ -59,8 +112,12 @@ def process_document_in_background(task_id: str, file_path: str, agentic_job_doc
             TaskStatus.FAILED,
             error=str(e)
         )
+        update_document_by_job_id(
+            job_id=agentic_job_doc_id,
+            status="failed",
+            error_message=str(e)
+        )
     finally:
-        # Clean up temporary file
         try:
             os.unlink(file_path)
         except Exception as e:

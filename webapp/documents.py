@@ -2,7 +2,7 @@
 # user_id, file_name, file_path, file_size, file_type, status (pending, processing, completed, failed), document_type, processing_result, error_message, job_id, metadata (we store user's fields to be extracted here)
 
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 from webapp.db import get_supabase_client
 
 def create_agentic_doc_job(
@@ -27,13 +27,31 @@ def create_agentic_doc_job(
 def update_agentic_doc_job(
     job_id: str,
     result: Dict[str, Any],
-    error: str
+    error: str,
 ) -> Dict[str, Any]:
     supabase = get_supabase_client()
-    response = supabase.table("agentic_doc_jobs").update({
+
+    update_data = {
         "result": result,
         "error": error
-    }).eq("job_id", job_id).execute()
+    }
+
+    response = supabase.table("agentic_doc_jobs").update(update_data).eq("job_id", job_id).execute()
+
+    return response.data
+
+
+def update_agentic_doc_job_fields(
+    job_id: str,
+    fields: Dict[str, Any]= None
+) -> Dict[str, Any]:
+    supabase = get_supabase_client()
+
+    update_data = {
+        "fields": fields
+    }
+
+    response = supabase.table("agentic_doc_jobs").update(update_data).eq("job_id", job_id).execute()
 
     return response.data
 
@@ -127,3 +145,59 @@ def update_document_by_job_id(
     )
     
     return response.data
+
+def update_document_data(
+    document_id: str,
+    data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Update document information in the Supabase database based on document_id.
+    
+    Args:
+        document_id: ID of the document
+        data: Data to update
+        
+    Returns:
+        Dict containing the updated document data from Supabase
+    """
+    supabase = get_supabase_client()
+    
+    response = (
+        supabase.table("documents")
+        .update(data)
+        .eq("id", document_id)
+        .execute()
+    )
+    
+    return response.data
+
+def get_document_data_by_document_id(document_id: str) -> Dict[str, Any]:
+    supabase = get_supabase_client()
+    document_response = supabase.table("documents").select("job_id, document_type, file_ids, vector_store_ids").eq("id", document_id).execute()
+    agentic_job_response = supabase.table("agentic_doc_jobs").select("result").eq("job_id", document_response.data[0]["job_id"]).execute()
+
+    return {
+        "document_type": document_response.data[0]["document_type"],
+        "markdown": agentic_job_response.data[0]["result"],
+        "job_id": document_response.data[0]["job_id"],
+        "file_ids": document_response.data[0]["file_ids"],
+        "vector_store_ids": document_response.data[0]["vector_store_ids"]
+    }
+
+def save_file_and_vector_store_ids(
+    document_id: str,
+    file_ids: List[str],
+    vector_store_ids: List[str]
+) -> Dict[str, Any]:
+    supabase = get_supabase_client()
+    response = supabase.table("documents").update({
+        "file_ids": file_ids,
+        "vector_store_ids": vector_store_ids
+    }).eq("id", document_id).execute()
+    return response.data
+
+
+
+
+
+
